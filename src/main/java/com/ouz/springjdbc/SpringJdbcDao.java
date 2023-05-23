@@ -1,22 +1,42 @@
 package com.ouz.springjdbc;
 
+import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLXML;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.imageio.ImageIO;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.SqlOutParameter;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -25,6 +45,9 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.namedparam.SqlParameterSourceUtils;
 import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
+import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
+import org.springframework.jdbc.support.lob.DefaultLobHandler;
+import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -307,5 +330,70 @@ public class SpringJdbcDao {
         },
         sqlParameters);
     return getOrderCountBetweenDatesProcedure.execute(date1, date2);
+  }
+
+  /** Spring JDBC bize clob , blob , xml vb gelismis veri tipleri ile calisabilme imkani saglar. */
+  public void insertAdvancedData() throws SQLException, IOException {
+    DefaultLobHandler lobHandler = new DefaultLobHandler();
+    File txtFile = new File("D:\\PersonalRepo\\springJDBC\\src\\main\\resources\\large.txt");
+    File jpgFile = new File("D:\\PersonalRepo\\springJDBC\\src\\main\\resources\\jpegimage.jpg");
+    InputStream txtFileInputStream = new FileInputStream(txtFile);
+
+    InputStream jpgFileInputStream = new FileInputStream(jpgFile);
+
+    InputStreamReader clobReader = new InputStreamReader(txtFileInputStream);
+
+    Connection conn = dataSource.getConnection();
+
+    SQLXML sqlxml = conn.createSQLXML();
+
+    Writer writer = sqlxml.setCharacterStream();
+    BufferedReader in =
+        new BufferedReader(
+            new FileReader("D:\\PersonalRepo\\springJDBC\\src\\main\\resources\\products.xml"));
+    String xml = null;
+    while ((xml = in.readLine()) != null) {
+      writer.write(xml);
+    }
+
+    jdbcTemplate.execute(
+        "INSERT INTO advanced_data_type (clob_data, blob_data, xml_data) VALUES (?, ?, ?)",
+        new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
+          @Override
+          protected void setValues(PreparedStatement ps, LobCreator lobCreator)
+              throws SQLException, DataAccessException {
+
+            lobCreator.setClobAsCharacterStream(ps, 1, clobReader, (int) txtFile.length());
+            lobCreator.setBlobAsBinaryStream(ps, 2, jpgFileInputStream, (int) jpgFile.length());
+            ps.setSQLXML(3, sqlxml);
+          }
+        });
+  }
+
+  public void readAdvancedData() throws SQLException, IOException {
+    DefaultLobHandler lobHandler = new DefaultLobHandler();
+
+    jdbcTemplate.query(
+        "select * from advanced_data_type",
+        (rs, rowNum) -> {
+          String clobData = lobHandler.getClobAsString(rs, "clob_data");
+          byte[] blobData = lobHandler.getBlobAsBytes(rs, "blob_data");
+          SQLXML sqlxml1 = rs.getSQLXML("xml_data");
+
+          String xmlData = sqlxml1.getString();
+          System.out.println(clobData);
+          System.out.println("==============================================");
+          System.out.println(xmlData);
+
+          ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(blobData);
+          BufferedImage bufferedImage;
+          try {
+            bufferedImage=ImageIO.read(byteArrayInputStream);
+            ImageIO.write(bufferedImage,"jpg",new File("D:\\PersonalRepo\\springJDBC\\src\\main\\resources\\newFile.jpg"));
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          return "resultMap";
+        });
   }
 }
