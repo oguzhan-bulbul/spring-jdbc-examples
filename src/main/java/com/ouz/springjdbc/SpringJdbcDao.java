@@ -5,21 +5,15 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLXML;
 import java.sql.Types;
@@ -34,9 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
-import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.SqlOutParameter;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -87,7 +79,7 @@ public class SpringJdbcDao {
   }
 
   public void updateRegion(Integer productId, String productName) {
-    jdbcTemplate.update(UPDATE_PRODUCT_NAME_BY_ID, productId, productName);
+    jdbcTemplate.update(UPDATE_PRODUCT_NAME_BY_ID, productName, productId);
   }
 
   public void deleteProductById(Integer productId) {
@@ -162,7 +154,7 @@ public class SpringJdbcDao {
               @Override
               public void setValues(PreparedStatement ps, int i) throws SQLException {
                 ps.setString(1, regions.get(i).getRegionDescription());
-                ps.setInt(2, regions.get(i).getRegiondId());
+                ps.setInt(2, regions.get(i).getRegionId());
               }
 
               @Override
@@ -199,7 +191,7 @@ public class SpringJdbcDao {
         2,
         (ps, region) -> {
           ps.setString(1, region.getRegionDescription());
-          ps.setInt(2, region.getRegiondId());
+          ps.setInt(2, region.getRegionId());
         });
   }
 
@@ -207,12 +199,12 @@ public class SpringJdbcDao {
    * SimpleJdbcInsert sinifi, bir insert sorgusunu daha kolay yapabilmemiz adina metadata
    * bilgilerinin tutuldugu bir siniftir.
    */
-  public Integer insertRegionWithSimpleJdbcInsert(Integer regionId, String regionCode) {
+  public Integer insertRegionWithSimpleJdbcInsert(Integer regionId, String regionDescription) {
 
     SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(dataSource).withTableName("REGION");
     Map<String, Object> parameters = new HashMap<>();
-    parameters.put("region_id", 6);
-    parameters.put("region_description", "Karadeniz");
+    parameters.put("region_id", regionId);
+    parameters.put("region_description", regionDescription);
 
     return simpleJdbcInsert.execute(parameters);
   }
@@ -234,41 +226,22 @@ public class SpringJdbcDao {
   /**
    * TODO : Postgresql de procedure cagirma problemi var.
    *
-   * @param date1
-   * @param date2
-   * @return
    */
   public Integer getProductsBetweenDateProcedure(Date date1, Date date2) {
     SimpleJdbcCall simpleJdbcCall =
         new SimpleJdbcCall(dataSource)
             .withProcedureName("get_how_many_orders_between_dates_procedure")
             .withoutProcedureColumnMetaDataAccess()
-            .declareParameters(
-                new SqlParameter("date1", Types.DATE),
-                new SqlParameter("date1", Types.DATE),
-                new SqlOutParameter("orderCount", Types.INTEGER));
-
+            .declareParameters(new SqlParameter("date1", Types.DATE))
+            .declareParameters(new SqlParameter("date2", Types.DATE))
+            .declareParameters(new SqlOutParameter("orderCount",Types.INTEGER));
+    int orderCount = 0;
     SqlParameterSource in =
-        new MapSqlParameterSource().addValue("date1", date1).addValue("date2", date2);
+        new MapSqlParameterSource().addValue("date1", date1).addValue("date2", date2).addValue("orderCount",orderCount);
 
     Map<String, Object> result = simpleJdbcCall.execute(in);
 
-    return (Integer) result.get("returnvalue");
-  }
-
-  /**
-   * JDBC Operasyonlarini Java Objeleri olarak modelleme SqlQuery MappingSqlQuery SqlUpdate
-   * StoredProcedure
-   */
-
-  /**
-   * SqlQuery , tekrar tekrar kullanilabilir , thread-safe ve sql ifadesine karsilik gelen bir
-   * siniftir. SqlQuery sinifi direk olarak nadiren kullanilir. Cunku MappingSqlQuery sinifi daha
-   * uygun bir impelementasyondur.
-   */
-  public Region getRegionByRegionId(int id) {
-    RegionMappingQuery regionMappingQuery = new RegionMappingQuery(dataSource);
-    return regionMappingQuery.findObject(id);
+    return (Integer) result.get("orderCount");
   }
 
   /**
@@ -281,6 +254,11 @@ public class SpringJdbcDao {
         GET_ALL_PRODUCTS_SQL,
         rs -> {
           List<Product> productList = new ArrayList<>();
+          try {
+            Thread.sleep(10000);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
           while (rs.next()) {
             Product product = new Product();
             product.setProductId(rs.getInt(1));
@@ -300,16 +278,31 @@ public class SpringJdbcDao {
   }
 
   /**
+   * JDBC Operasyonlarini Java Objeleri olarak modelleme SqlQuery MappingSqlQuery SqlUpdate
+   * StoredProcedure
+   */
+
+  /**
+   * SqlQuery , tekrar tekrar kullanilabilir , thread-safe ve sql ifadesine karsilik gelen bir
+   * siniftir. SqlQuery sinifi direk olarak nadiren kullanilir. Cunku MappingSqlQuery sinifi daha
+   * uygun bir impelementasyondur.
+   */
+  public Region getRegionByRegionId(int id) {
+    RegionMappingQuery regionMappingQuery = new RegionMappingQuery(dataSource);
+    return regionMappingQuery.findObject(id);
+  }
+
+  /**
    * SqlUpdate sinifi bize tekrar kullanilabilen bir sql update statement'i saglar. Bu sinif thread
    * safe bir siniftir
    */
-  public int updateProductWithSqlUpdate(int regionId, String regionDescription) {
+  public int updateRegionWithSqlUpdate(int regionId, String regionDescription) {
     UpdateRegionName updateRegionName = new UpdateRegionName(dataSource);
     return updateRegionName.execute(regionId, regionDescription);
   }
 
   /**
-   * //TODO : Procedure cagirimi problemini duzelt StoredProcedure sinifi tekrar kullanilabilen ve
+   * //TODO : Procedure icin sql olusturulurken postgresql ile alakali {} sorunu var.
    * DB ortaminda bulunan stored procedure nesnelerini java nesnelestirmek icin kullanilan siniftir.
    */
   public Integer getOrderCountBetweenDatesWithStoredProcedure(Date date1, Date date2) {
@@ -317,18 +310,22 @@ public class SpringJdbcDao {
         new GetOrdersCountBetweenDateProcedure(dataSource);
 
     List<SqlParameter> sqlParameters =
-        List.of(new SqlParameter("date1", Types.DATE), new SqlParameter("date2", Types.DATE));
-    jdbcTemplate.call(
+        List.of(
+            new SqlParameter("date1", Types.DATE),
+            new SqlParameter("date2", Types.DATE),
+            new SqlOutParameter("orderCount",Types.INTEGER));
+    Map<String, Object> call = jdbcTemplate.call(
         con -> {
           CallableStatement callableStatement =
-              con.prepareCall("{? = call get_how_many_orders_between_dates_procedure(?, ?)}");
-          callableStatement.registerOutParameter(1, Types.INTEGER);
-          callableStatement.setDate(2, date1);
-          callableStatement.setDate(3, date2);
+              con.prepareCall("call get_how_many_orders_between_dates_procedure(?, ?,?)");
+          callableStatement.registerOutParameter(3, Types.INTEGER);
+          callableStatement.setDate(1, date1);
+          callableStatement.setDate(2, date2);
 
           return callableStatement;
         },
         sqlParameters);
+//    return (Integer) call.get("orderCount");
     return getOrderCountBetweenDatesProcedure.execute(date1, date2);
   }
 

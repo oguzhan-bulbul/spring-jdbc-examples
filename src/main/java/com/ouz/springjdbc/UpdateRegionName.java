@@ -9,14 +9,13 @@ public class UpdateRegionName extends SqlUpdate {
 
   public UpdateRegionName(DataSource dataSource) {
     setDataSource(dataSource);
-    setSql("UPDATE REGION SET REGION_DESCRIPTION = ? WHERE REGION_ID = ?");
-    declareParameter(new SqlParameter("region_id", Types.INTEGER));
+    setSql("UPDATE REGION SET region_description = ? WHERE region_id = ?");
     declareParameter(new SqlParameter("region_description", Types.VARCHAR));
-
+    declareParameter(new SqlParameter("region_id", Types.INTEGER));
     compile();
   }
 
   public int execute(int regionId, String regionDescription) {
-    return update(regionId, regionDescription);
+    return update(regionDescription, regionId);
   }
 }

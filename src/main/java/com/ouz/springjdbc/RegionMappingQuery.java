@@ -18,7 +18,7 @@ public class RegionMappingQuery extends MappingSqlQuery<Region> {
   @Override
   protected Region mapRow(ResultSet rs, int rowNum) throws SQLException {
     Region region = new Region();
-    region.setRegiondId(rs.getInt("region_id"));
+    region.setRegionId(rs.getInt("region_id"));
     region.setRegionDescription(rs.getString("region_description"));
     return region;
   }

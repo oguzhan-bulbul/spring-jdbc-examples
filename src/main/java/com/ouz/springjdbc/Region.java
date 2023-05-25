@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @Data
 public class Region {
 
-  private int regiondId;
+  private Integer regionId;
   private String regionDescription;
 }

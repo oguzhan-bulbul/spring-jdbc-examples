@@ -32,7 +32,7 @@ public class DBConfig {
    * Eger bu sure asilirsa SQLException firlatilir. En dusuk 250ms olabilir. Default degeri 30000ms.
    *
    * <p>idleTimeout - Bu parametre bir connection'in poolda idle durumunda ne kadar sure boyunca
-   * kalacagini belirler. Bu ozellik sadece minimumIdle degerininde maximumPoolSize'dan az oldugu
+   * kalacagini belirler. Bu ozellik sadece minimumIdle degerinin maximumPoolSize'dan az oldugu
    * zaman gecerlidir. Bir connection maximum 30 saniye,ortalama olarak 15 saniye icerisinde idle
    * konumuna gecerler. 0 degeri verilirse idle connectionlar pool'dan asla silinmezler. Minimum
    * verilebilecek deger 10000ms'dir.Default deger ise 600000ms (10dk)'dir.
@@ -64,24 +64,38 @@ public class DBConfig {
    *
    * <p>poolName - Bu ozellik ile connection pool'larimiza loglama vb amaclarla isim verebiliriz.
    *
+   * <p>initializationFailTimeOut - Bu ozellik havuza basarili bir sekilde connection eklenemedigi
+   * durumda ne kadar surede fail-fast bir sekilde exception firlatacagini kontrol eder. Bu timeout
+   * suresi connectionTimeout suresinden sonra devreye girer.
+   *
+   * <p>readOnly - Bu ozellik Pool'dan alinan connectionlarin default olarak read-only bir sekilde
+   * olusup olusmayacagini kontrol eder.
+   *
+   * <p>Bu ozellik bir baglantinin canliligini test edilecegi maksimum sureyi kontrol eder. Bu
+   * ozellik connectionTimeout suresinden az olmalidir. En az 250 ms olabilir . Default 5000ms.
+   *
+   * <p>threadFactory - Bu ozellik pool icin threadler uretilirken kullanilacak ThreadFactory'i
+   * belirler.Default olarak IoC container veya uygulama tarafindan yonetilir.
+   *
    * <p><a href="https://github.com/brettwooldridge/HikariCP/blob/dev/README.md">HikariCP Github
    * Link</a>
    */
-  @Bean("hikariDataSource")
-  public DataSource dataSource() {
-
-    HikariConfig hikariConfig = new HikariConfig();
-    hikariConfig.setJdbcUrl(url);
-    hikariConfig.setUsername(username);
-    hikariConfig.setPassword(password);
-    hikariConfig.addDataSourceProperty("minimumIdle", "5");
-    return new HikariDataSource(hikariConfig);
-  }
+//  @Bean("hikariDataSource")
+//  public DataSource dataSource() {
+//
+//    HikariConfig hikariConfig = new HikariConfig();
+//    hikariConfig.setJdbcUrl(url);
+//    hikariConfig.setUsername(username);
+//    hikariConfig.setPassword(password);
+//    hikariConfig.addDataSourceProperty("minimumIdle", "5");
+//    return new HikariDataSource(hikariConfig);
+//  }
 
   @Bean("hikariDataSourceV1")
   @ConfigurationProperties("spring.datasource.ouz.hikari")
-  public DataSource dataSourceV1() {
-    return DataSourceBuilder.create().build();
+  public DataSource dataSourceV1(
+      @Qualifier("dataSourcePropertiesOuz") DataSourceProperties dataSourceProperties) {
+    return dataSourceProperties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
   }
 
   @Bean("dataSourcePropertiesOuz")
