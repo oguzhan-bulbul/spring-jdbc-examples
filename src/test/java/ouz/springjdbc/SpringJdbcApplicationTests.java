@@ -24,7 +24,7 @@ class SpringJdbcApplicationTests {
   @Test
   void testInsertRegion() {
 
-    springJdbcDao.insertRegion(6, "Turkey");
+    springJdbcDao.insertRegion(8, "Marmara");
   }
 
   @Test
@@ -94,9 +94,9 @@ class SpringJdbcApplicationTests {
   void testBatchUpdateRegionDescByRegionIdWithJdbc() {
 
     List<Region> regions = new ArrayList<>();
-    regions.add(new Region(1, "Amerika"));
-    regions.add(new Region(2, "Turkey"));
-    regions.add(new Region(3, "Avrupa"));
+    regions.add(new Region(1, "AAAAAAAA"));
+    regions.add(new Region(2, "BBBBBBBBB"));
+    regions.add(new Region(3, "CCCCCCCCC"));
 
     Integer totalEffectedRow = springJdbcDao.batchUpdateRegionDescByRegionIdWithJdbc(regions);
     System.out.println(totalEffectedRow);
@@ -130,7 +130,7 @@ class SpringJdbcApplicationTests {
   @Test
   void testInsertRegionWithSimpleJdbcInsert() {
 
-    Integer effectedRowCount = springJdbcDao.insertRegionWithSimpleJdbcInsert(7, "Trabzon");
+    Integer effectedRowCount = springJdbcDao.insertRegionWithSimpleJdbcInsert(11, "Trabzon");
     System.out.println(effectedRowCount);
   }
 
@@ -182,7 +182,7 @@ class SpringJdbcApplicationTests {
   @Test
   void testInsertAdvancedData() throws SQLException, IOException {
 
-    springJdbcDao.readAdvancedData();
+    springJdbcDao.insertAdvancedData();
   }
 
   @Test
@@ -191,19 +191,4 @@ class SpringJdbcApplicationTests {
     springJdbcDao.readAdvancedData();
   }
 
-  @Test
-  void testConnectionPool()
-      throws SQLException, IOException, ExecutionException, InterruptedException {
-
-    ExecutorService executorService = Executors.newCachedThreadPool();
-    Future<?> submit = null;
-    for (int i = 0; i < 20; i++) {
-      submit =
-          executorService.submit(
-              () -> {
-                springJdbcDao.getAllProductsWithResultSetExtractor();
-              });
-    }
-    submit.get();
-  }
 }

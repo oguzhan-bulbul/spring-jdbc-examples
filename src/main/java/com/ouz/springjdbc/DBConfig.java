@@ -71,7 +71,7 @@ public class DBConfig {
    * <p>readOnly - Bu ozellik Pool'dan alinan connectionlarin default olarak read-only bir sekilde
    * olusup olusmayacagini kontrol eder.
    *
-   * <p>Bu ozellik bir baglantinin canliligini test edilecegi maksimum sureyi kontrol eder. Bu
+   * <p>validationTimeout - Bu ozellik bir baglantinin canliligini test edilecegi maksimum sureyi kontrol eder. Bu
    * ozellik connectionTimeout suresinden az olmalidir. En az 250 ms olabilir . Default 5000ms.
    *
    * <p>threadFactory - Bu ozellik pool icin threadler uretilirken kullanilacak ThreadFactory'i
@@ -80,16 +80,16 @@ public class DBConfig {
    * <p><a href="https://github.com/brettwooldridge/HikariCP/blob/dev/README.md">HikariCP Github
    * Link</a>
    */
-//  @Bean("hikariDataSource")
-//  public DataSource dataSource() {
+//    @Bean("hikariDataSource")
+//    public DataSource dataSource() {
 //
-//    HikariConfig hikariConfig = new HikariConfig();
-//    hikariConfig.setJdbcUrl(url);
-//    hikariConfig.setUsername(username);
-//    hikariConfig.setPassword(password);
-//    hikariConfig.addDataSourceProperty("minimumIdle", "5");
-//    return new HikariDataSource(hikariConfig);
-//  }
+//      HikariConfig hikariConfig = new HikariConfig();
+//      hikariConfig.setJdbcUrl(url);
+//      hikariConfig.setUsername(username);
+//      hikariConfig.setPassword(password);
+//      hikariConfig.addDataSourceProperty("minimumIdle", "5");
+//      return new HikariDataSource(hikariConfig);
+//    }
 
   @Bean("hikariDataSourceV1")
   @ConfigurationProperties("spring.datasource.ouz.hikari")

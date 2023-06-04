@@ -25,7 +25,7 @@ public class TestController {
       submit =
           executorService.submit(
               () -> {
-                springJdbcDao.getAllProducts();
+                springJdbcDao.useConnectionForGivenSeconds(10);
               });
     }
     submit.get();

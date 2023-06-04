@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementCallback;
 import org.springframework.jdbc.core.SqlOutParameter;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -103,13 +104,14 @@ public class SpringJdbcDao {
   }
 
   public List<Product> getAllProducts() {
-
     return jdbcTemplate.query(GET_ALL_PRODUCTS_SQL, new ProductRowMapper());
   }
 
   public List<Product> getAllProductsBySupplierIdWithPreparedStatement() {
     return jdbcTemplate.query(
-        GET_PRODUCTS_BY_SUPPLIER_ID, ps -> ps.setInt(1, 8), new ProductRowMapper());
+        GET_PRODUCTS_BY_SUPPLIER_ID, (PreparedStatement ps) -> {
+          ps.setInt(1, 8);
+        }, new ProductRowMapper());
   }
 
   /**
@@ -129,15 +131,15 @@ public class SpringJdbcDao {
 
     SqlParameterSource parameterSource = new MapSqlParameterSource("supplierId", 8);
 
-    return namedParameterJdbcTemplate.query(
-        "SELECT * FROM PRODUCTS WHERE SUPPLIER_ID = :supplierId",
-        parameterMap,
-        new ProductRowMapper());
+//    return namedParameterJdbcTemplate.query(
+//        "SELECT * FROM PRODUCTS WHERE SUPPLIER_ID = :supplierId",
+//        parameterMap,
+//        new ProductRowMapper());
 
-    //    return namedParameterJdbcTemplate.query(
-    //        "SELECT * FROM PRODUCTS WHERE SUPPLIER_ID = :supplierId",
-    //        parameterSource,
-    //        new ProductRowMapper());
+        return namedParameterJdbcTemplate.query(
+            "SELECT * FROM PRODUCTS WHERE SUPPLIER_ID = :supplierId",
+            parameterSource,
+            new ProductRowMapper());
   }
 
   /**
@@ -185,7 +187,7 @@ public class SpringJdbcDao {
 
   // Belirli batch size vererek birden fazla batch islemi ayni anda yapabiliriz.
   public void batchUpdateRegionDescByRegionIdWithMultipleBatches(List<Region> regions) {
-    jdbcTemplate.batchUpdate(
+    int[][] ints = jdbcTemplate.batchUpdate(
         "UPDATE REGION SET region_description = ? where region_id =?",
         regions,
         2,
@@ -223,10 +225,7 @@ public class SpringJdbcDao {
     return simpleJdbcCall.executeFunction(Integer.class, in);
   }
 
-  /**
-   * TODO : Postgresql de procedure cagirma problemi var.
-   *
-   */
+  /** TODO : Postgresql de procedure cagirma problemi var. */
   public Integer getProductsBetweenDateProcedure(Date date1, Date date2) {
     SimpleJdbcCall simpleJdbcCall =
         new SimpleJdbcCall(dataSource)
@@ -234,10 +233,13 @@ public class SpringJdbcDao {
             .withoutProcedureColumnMetaDataAccess()
             .declareParameters(new SqlParameter("date1", Types.DATE))
             .declareParameters(new SqlParameter("date2", Types.DATE))
-            .declareParameters(new SqlOutParameter("orderCount",Types.INTEGER));
+            .declareParameters(new SqlOutParameter("orderCount", Types.INTEGER));
     int orderCount = 0;
     SqlParameterSource in =
-        new MapSqlParameterSource().addValue("date1", date1).addValue("date2", date2).addValue("orderCount",orderCount);
+        new MapSqlParameterSource()
+            .addValue("date1", date1)
+            .addValue("date2", date2)
+            .addValue("orderCount", orderCount);
 
     Map<String, Object> result = simpleJdbcCall.execute(in);
 
@@ -254,11 +256,6 @@ public class SpringJdbcDao {
         GET_ALL_PRODUCTS_SQL,
         rs -> {
           List<Product> productList = new ArrayList<>();
-          try {
-            Thread.sleep(10000);
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
           while (rs.next()) {
             Product product = new Product();
             product.setProductId(rs.getInt(1));
@@ -302,8 +299,8 @@ public class SpringJdbcDao {
   }
 
   /**
-   * //TODO : Procedure icin sql olusturulurken postgresql ile alakali {} sorunu var.
-   * DB ortaminda bulunan stored procedure nesnelerini java nesnelestirmek icin kullanilan siniftir.
+   * //TODO : Procedure icin sql olusturulurken postgresql ile alakali {} sorunu var. DB ortaminda
+   * bulunan stored procedure nesnelerini java nesnelestirmek icin kullanilan siniftir.
    */
   public Integer getOrderCountBetweenDatesWithStoredProcedure(Date date1, Date date2) {
     GetOrdersCountBetweenDateProcedure getOrderCountBetweenDatesProcedure =
@@ -313,19 +310,20 @@ public class SpringJdbcDao {
         List.of(
             new SqlParameter("date1", Types.DATE),
             new SqlParameter("date2", Types.DATE),
-            new SqlOutParameter("orderCount",Types.INTEGER));
-    Map<String, Object> call = jdbcTemplate.call(
-        con -> {
-          CallableStatement callableStatement =
-              con.prepareCall("call get_how_many_orders_between_dates_procedure(?, ?,?)");
-          callableStatement.registerOutParameter(3, Types.INTEGER);
-          callableStatement.setDate(1, date1);
-          callableStatement.setDate(2, date2);
+            new SqlOutParameter("orderCount", Types.INTEGER));
+    Map<String, Object> call =
+        jdbcTemplate.call(
+            con -> {
+              CallableStatement callableStatement =
+                  con.prepareCall("call get_how_many_orders_between_dates_procedure(?, ?,?)");
+              callableStatement.registerOutParameter(3, Types.INTEGER);
+              callableStatement.setDate(1, date1);
+              callableStatement.setDate(2, date2);
 
-          return callableStatement;
-        },
-        sqlParameters);
-//    return (Integer) call.get("orderCount");
+              return callableStatement;
+            },
+            sqlParameters);
+    //    return (Integer) call.get("orderCount");
     return getOrderCountBetweenDatesProcedure.execute(date1, date2);
   }
 
@@ -385,12 +383,22 @@ public class SpringJdbcDao {
           ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(blobData);
           BufferedImage bufferedImage;
           try {
-            bufferedImage=ImageIO.read(byteArrayInputStream);
-            ImageIO.write(bufferedImage,"jpg",new File("D:\\PersonalRepo\\springJDBC\\src\\main\\resources\\newFile.jpg"));
+            bufferedImage = ImageIO.read(byteArrayInputStream);
+            ImageIO.write(
+                bufferedImage,
+                "jpg",
+                new File("D:\\PersonalRepo\\springJDBC\\src\\main\\resources\\newFile.jpg"));
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
           return "resultMap";
         });
+  }
+  public void useConnectionForGivenSeconds(int seconds){
+    String s = "SELECT pg_sleep(?)";
+    jdbcTemplate.execute(s, (PreparedStatementCallback<Object>) ps -> {
+      ps.setInt(1,seconds);
+      return ps.execute();
+    });
   }
 }
